@@ -1,0 +1,15 @@
+# 忽略虚拟环境
+#flask/
+#.idea/
+
+# 忽略 Python 缓存和 Pytest 缓存
+__pycache__/
+.pytest_cache/
+
+# 忽略测试生成的原始数据和战报
+allure-results/
+reports/
+
+# 忽略本地运行的日志文件
+logs/
+*.log
