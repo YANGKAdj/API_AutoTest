@@ -7,7 +7,7 @@ from utils.db_util import db
 @pytest.fixture(scope="session")
 def get_token():
     print("\n[全局后勤] 📡 正在向靶机申请全局通行证...")
-    url = "http://host.docker.internal:5000/api/login"
+    url = "http://192.168.152.1:5000/api/login"
     payload = {"username": "kobe", "password": "123456"}
 
     res = requests.post(url, json=payload)
