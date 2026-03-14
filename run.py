@@ -6,10 +6,12 @@ if __name__ == '__main__':
 
     # 极其优雅！因为有了 pytest.ini，这里什么参数都不用传了！
     # Pytest 总司令会自动去读 .ini 文件里的规矩！
+    # 第一个参数强行指定测试用例所在的文件夹，绝不让它乱跑
     pytest.main([
-        "--cov=api",                  # 雷达目标：只扫 api 文件夹里的代码
-        "--cov-report=html",          # 生成极其华丽的 html 覆盖率报告
-        "--cov-report=term-missing"   # 极其硬核：在终端直接打印出哪一行代码没测到！
+        "./test_cases",
+        "--cov=api",
+        "--cov-report=html",
+        "--cov-report=term-missing"
     ])
 
     print("📊 正在生成极其华丽的 Allure HTML 战报...")
