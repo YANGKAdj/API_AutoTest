@@ -1,5 +1,8 @@
 # 🚀 企业级 API 自动化测试框架 (API_AutoTest)
-
+![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)
+![Pytest](https://img.shields.io/badge/Pytest-8.0+-green.svg)
+![Allure](https://img.shields.io/badge/Allure_Report-passed-success.svg)
+![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 本项目是一个基于 `Python + Pytest + Requests + Allure` 打造的现代化、高可用接口自动化测试框架。
 
 ## 🛠️ 核心技术栈 (Tech Stack)
