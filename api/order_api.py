@@ -3,7 +3,7 @@ from utils.logger import log
 
 class OrderAPI:
     def __init__(self,token):
-        self.base_url = "http://192.168.152.1"
+        self.base_url = "http://127.0.0.1"
         self.headers = {"token": token}
 
     def create_order(self,product_name, amount):
