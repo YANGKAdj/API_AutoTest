@@ -2,7 +2,7 @@
 import requests
 
 def test_create_order(get_token):
-    url = "http://192.168.152.1:5000/api/order/create"
+    url = "http://127.0.0.1:5000/api/order/create"
 
     # 绝密操作：带着 Token 才能进后院！把 Token 塞进请求头 (Headers) 里！
     headers = {

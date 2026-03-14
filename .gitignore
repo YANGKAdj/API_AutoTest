@@ -1,15 +1,21 @@
-# 忽略虚拟环境
-#flask/
-#.idea/
-
-# 忽略 Python 缓存和 Pytest 缓存
+# Python 缓存
 __pycache__/
+*.py[cod]
+*$py.class
+
+# 虚拟环境
+venv/
+env/
+
+# Pytest 和覆盖率缓存
 .pytest_cache/
+.coverage
+htmlcov/
 
-# 忽略测试生成的原始数据和战报
+# Allure 测试报告
 allure-results/
-reports/
+allure-report/
 
-# 忽略本地运行的日志文件
-logs/
-*.log
+# IDE 配置文件
+.idea/
+.vscode/
