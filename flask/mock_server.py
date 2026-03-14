@@ -5,7 +5,7 @@ app = Flask(__name__)
 
 # ================= 数据库配置区 =================
 DB_CONFIG = {
-    'host': '192.168.152.1',
+    'host': '127.0.0.1',
     'user': 'root',
     'password': '123456789Yj',  # ⚠️ 长官，请修改为你的 MySQL 密码！
     'database': 'mall_target',
