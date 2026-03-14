@@ -12,16 +12,16 @@
 ## 📂 项目目录结构 (Project Structure)
 ```text
 API_AutoTest/
-├── api/                    # 📄 [POM分层] API 对象封装层 (如 order_api.py)
-├── test_cases/             # 🧪 [测试用例] 核心测试脚本库 (涵盖业务流与异常边界测试)
-├── data/                   # 📦 [测试数据] YAML 数据驱动文件 (test_data.yaml)
-├── utils/                  # 🔧 [公共工具] 核心工具类封装 (db_util, yaml_util, logger)
-├── conftest.py             # 🛡️ [全局夹具] Pytest 全局配置 (处理登录状态维持与数据回收)
-├── pytest.ini              # 📜 [框架配置] Pytest 全局运行参数配置文件
-├── run.py                  # 🚀 [执行入口] 测试任务调度与 Allure 报告生成总入口
-├── requirements.txt        # 📃 [环境依赖] 项目核心依赖包版本控制清单
-├── logs/                   # 📝 [运行日志] 自动化执行日志按天归档目录
-└── reports/                # 📊 [测试报告] Allure 静态 HTML 报告输出目录
+├── api/                    # [POM分层] API 对象封装层 (如 order_api.py)
+├── test_cases/             # [测试用例] 核心测试脚本库 (涵盖业务流与异常边界测试)
+├── data/                   # [测试数据] YAML 数据驱动文件 (test_data.yaml)
+├── utils/                  # [公共工具] 核心工具类封装 (db_util, yaml_util, logger)
+├── conftest.py             # [全局夹具] Pytest 全局配置 (处理登录状态维持与数据回收)
+├── pytest.ini              # [框架配置] Pytest 全局运行参数配置文件
+├── run.py                  # [执行入口] 测试任务调度与 Allure 报告生成总入口
+├── requirements.txt        # [环境依赖] 项目核心依赖包版本控制清单
+├── logs/                   # [运行日志] 自动化执行日志按天归档目录
+└── reports/                # [测试报告] Allure 静态 HTML 报告输出目录
 ```
 ## 🧠 框架核心架构思想 (Core Architecture)
 
@@ -32,10 +32,30 @@ API_AutoTest/
 
 ## ⚙️ 本地极速部署与运行 (Quick Start)
 
-### 1. 启动底层数据库 (Docker 方式)
+### 1. 安装依赖 (Install Dependencies)
 
-确保本地已安装 Docker，拉取并启动独立的测试数据库容器：
+确保本地已安装 Python 3.8+ 环境。在项目根目录下打开终端，执行以下命令极速安装框架所需的所有第三方库：
 
 ```bash
-docker run -d --name test_db -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=api_test
+pip install -r requirements.txt -i [https://pypi.tuna.tsinghua.edu.cn/simple](https://pypi.tuna.tsinghua.edu.cn/simple)
+```
+### 2. 启动本地被测靶机 (Start Mock Server)
+
+本框架自带基于 Flask 开发的本地测试靶机，完美模拟电商核心业务链路。在运行自动化测试前，请先新开一个终端启动靶机服务：
+
+```bash
+python mock_server.py
+
+```
+注意：靶机服务默认运行在 http://127.0.0.1:5000，请保持该终端窗口开启
+### 3.一键运行 run.py
+靶机就绪后，在项目根目录运行统一启动脚本。框架将自动利用 Pytest 收集并执行 test_cases 目录下的所有用例，并同步生成覆盖率统计：
+```bash
+python run.py
+```
+### 4.查看Allure报告
+测试执行完毕后，控制台会输出代码分支覆盖率（Coverage）。要查看详细的 Allure 动态测试报告，请在终端执行：
+
+```Bash
+allure serve ./allure-results
 ```
