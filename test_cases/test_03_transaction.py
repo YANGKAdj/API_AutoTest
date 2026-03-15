@@ -1,5 +1,6 @@
 import requests
 from utils.db_util import db
+from config import CREATE_ORDER_URL, PAY_ORDER_URL
 def test_full_pay_flow(get_token):
     #准备工作
     #headers = {"Authorization": f"Bearer {get_token}"}
@@ -7,7 +8,7 @@ def test_full_pay_flow(get_token):
 
     #创建一个订单
     print("\n[动作一] 🚀 正在创建一笔 100 元的新订单...")
-    create_url = "http://127.0.0.1:5000/api/order/create"
+    create_url = CREATE_ORDER_URL
     order_payload = {"product_name": "《大厂测开晋升指南》", "amount": 100.00}
     res_create = requests.post(create_url, headers=headers, json=order_payload)
 
@@ -17,7 +18,7 @@ def test_full_pay_flow(get_token):
 
     #扣款
     print(f"\n[动作二] 💸 正在对订单 {order_id} 发起支付指令...")
-    pay_url = "http://127.0.0.1:5000/api/order/pay"
+    pay_url = PAY_ORDER_URL
     #
 
     #
@@ -52,7 +53,7 @@ def test_pay_insufficient_balance(get_token):
 
     # 【动作一：强行制造一笔天价订单】
     print("\n[异常演习] 🚀 kobe 只有 400 块，却试图购买价值 15000 元的 MacBook Pro...")
-    create_url = "http://127.0.0.1:5000/api/order/create"
+    create_url = CREATE_ORDER_URL
     order_payload = {"product_name": "MacBook Pro", "amount": 15000.00}
     # 提交需求
     res_create = requests.post(create_url, headers=headers, json=order_payload)
@@ -61,7 +62,7 @@ def test_pay_insufficient_balance(get_token):
     print(f"[情报] ✅ 拿到天价的订单号: {order_id}")
 
     # 去支付
-    pay_url = "http://127.0.0.1:5000/api/order/pay"
+    pay_url = PAY_ORDER_URL
     # 在支付接口需要的是订单号
     pay_payload = {"order_id": order_id}
     res_pay = requests.post(url=pay_url, json=pay_payload, headers=headers)

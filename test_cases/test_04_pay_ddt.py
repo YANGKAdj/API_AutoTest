@@ -2,6 +2,7 @@ import requests
 import pytest
 from utils.yaml_util import read_yaml
 from utils.db_util import db
+from config import CREATE_ORDER_URL, PAY_ORDER_URL
 
 
 #装饰器 DDT
@@ -27,7 +28,7 @@ def test_pay_fail(get_token,case_data,order_cleaner):
 
     ###########流程##########
     #1. 创建订单
-    create_url = "http://127.0.0.1:5000/api/order/create"
+    create_url = CREATE_ORDER_URL
     order_payload = {"product_name": product_name, "amount": amount}
     res_create = requests.post(create_url, headers=headers, json=order_payload)
 
@@ -37,7 +38,7 @@ def test_pay_fail(get_token,case_data,order_cleaner):
     order_cleaner.append(order_id)
     #2. 支付订单
     print(f"\n[动作二] 💸 正在对订单 {order_id} 发起支付指令...")
-    pay_url = "http://127.0.0.1:5000/api/order/pay"
+    pay_url = PAY_ORDER_URL
 
     pay_payload = {"order_id": order_id}
     res_pay = requests.post(url=pay_url, json=pay_payload, headers=headers)

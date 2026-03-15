@@ -1,7 +1,8 @@
 import requests
+from config import LOGIN_URL
 
 def test_login():
-    url = "http://127.0.0.1:5000/api/login"
+    url = LOGIN_URL
 
     #先跑通，后分离数据
     payload = {

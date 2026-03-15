@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  api-tests:
+    build: .
+    working_dir: /app
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: >
+      bash -c "
+      python flask/mock_server.py &
+      sleep 5 &&
+      pytest -q
+      "
+    networks:
+      - testnet
+
+networks:
+  testnet:
+    external: true
+

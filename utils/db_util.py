@@ -3,7 +3,8 @@ import pymysql
 class DB:
     def __init__(self):
         self.config = {
-            'host': '127.0.0.1',
+            # 在 Docker / Jenkins 中复用已存在的 my_mysql 容器
+            'host': 'my_mysql',
             'user': 'root',
             'password': '123456789Yj',
             'database': 'mall_target',
