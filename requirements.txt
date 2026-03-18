@@ -1,6 +1,12 @@
+# 测试框架核心依赖
 pytest==9.0.2
 requests==2.32.5
 allure-pytest==2.15.3
 PyMySQL==1.1.2
 PyYAML==6.0.3
-pytest-cov == 7.0.0
+pytest-cov==7.0.0
+
+# FastAPI 银行服务依赖
+fastapi==0.115.6
+uvicorn==0.34.0
+pydantic==2.10.6

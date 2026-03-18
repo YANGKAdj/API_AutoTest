@@ -1,0 +1,111 @@
+# ===========================================
+# 银行核心业务接口测试数据
+# 说明：所有测试用例的输入参数和预期结果均在此处定义，
+#       测试脚本只读取数据、不硬编码参数，实现测试逻辑与测试数据的完全分离。
+# ===========================================
+
+# ---- 存款测试数据 ----
+deposit:
+  - case: "正向-存款成功"
+    account_no: "6222020000000002"
+    amount: 100.00
+    expected_http: 200
+    expected_code: 200
+
+  - case: "边界-存款金额为0（Pydantic拦截）"
+    account_no: "6222020000000002"
+    amount: 0
+    expected_http: 422
+    expected_code: null
+
+  - case: "边界-超过单笔存款上限50万"
+    account_no: "6222020000000002"
+    amount: 500001.00
+    expected_http: 422
+    expected_code: null
+
+# ---- 取款测试数据 ----
+withdraw:
+  - case: "正向-取款成功"
+    account_no: "6222020000000001"
+    amount: 200.00
+    expected_http: 200
+    expected_code: 200
+
+  - case: "异常-余额不足"
+    account_no: "6222020000000002"
+    amount: 6000.00
+    expected_http: 400
+    expected_code: 400
+
+  - case: "边界-超过单笔取款上限5万"
+    account_no: "6222020000000001"
+    amount: 50001.00
+    expected_http: 422
+    expected_code: null
+
+  - case: "边界-取款金额为负数"
+    account_no: "6222020000000001"
+    amount: -100.00
+    expected_http: 422
+    expected_code: null
+
+# ---- 行内转账测试数据 ----
+transfer:
+  - case: "正向-转账成功"
+    from_account: "6222020000000001"
+    to_account: "6222020000000003"
+    amount: 500.00
+    remark: "测试转账"
+    expected_http: 200
+    expected_code: 200
+
+  - case: "异常-转账金额超过余额"
+    from_account: "6222020000000001"
+    to_account: "6222020000000003"
+    amount: 9999999.00
+    remark: null
+    expected_http: 400
+    expected_code: 400
+
+  - case: "异常-转入转出账号相同"
+    from_account: "6222020000000001"
+    to_account: "6222020000000001"
+    amount: 100.00
+    remark: null
+    expected_http: 400
+    expected_code: 400
+
+  - case: "异常-收款账户不存在"
+    from_account: "6222020000000001"
+    to_account: "0000000000000000"
+    amount: 100.00
+    remark: null
+    expected_http: 404
+    expected_code: 404
+
+  - case: "边界-转账金额为负数"
+    from_account: "6222020000000001"
+    to_account: "6222020000000003"
+    amount: -100.00
+    remark: null
+    expected_http: 422
+    expected_code: null
+
+# ---- 跨行转账测试数据 ----
+cross_transfer:
+  - case: "正向-跨行转账成功（手续费0.1%）"
+    from_account: "6222020000000001"
+    to_bank_code: "ICBC"
+    to_account: "6221001234567890"
+    amount: 1000.00
+    expected_http: 200
+    expected_fee: 1.00
+
+  - case: "异常-余额不足含手续费"
+    from_account: "6222020000000002"
+    to_bank_code: "BOC"
+    to_account: "6211001234567890"
+    amount: 999999.00
+    expected_http: 400
+    expected_fee: null

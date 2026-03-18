@@ -1,21 +1,59 @@
 version: '3.8'
 
 services:
+
+  # ── 1. MySQL 数据库 ────────────────────────────────────────
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: 123456789Yj
+      MYSQL_DATABASE: bank_core
+    volumes:
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql   # 自动初始化建表+数据
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - banknet
+
+  # ── 2. 银行 API 服务（FastAPI + uvicorn） ─────────────────
+  bank-server:
+    build: .
+    command: uvicorn bank_server.main:app --host 0.0.0.0 --port 8000
+    environment:
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=123456789Yj
+      - DB_NAME=bank_core
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - banknet
+
+  # ── 3. 测试执行容器 ────────────────────────────────────────
   api-tests:
     build: .
-    working_dir: /app
-    environment:
-      - PYTHONUNBUFFERED=1
     command: >
       bash -c "
-      python flask/mock_server.py &
-      sleep 5 &&
-      pytest -q
+      sleep 3 &&
+      pytest -q --alluredir=./allure-results --clean-alluredir
       "
+    environment:
+      - BASE_URL=http://bank-server:8000
+      - DB_HOST=db
+      - DB_PASSWORD=123456789Yj
+      - DB_NAME=bank_core
+    depends_on:
+      - bank-server
     networks:
-      - testnet
+      - banknet
 
 networks:
-  testnet:
-    external: true
-
+  banknet:
+    driver: bridge
