@@ -32,24 +32,28 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
     networks:
       - banknet
 
   # ── 3. 测试执行容器 ────────────────────────────────────────
   api-tests:
     build: .
-    command: >
-      bash -c "
-      sleep 3 &&
-      pytest -q --alluredir=./allure-results --clean-alluredir
-      "
+    command: pytest -q --alluredir=./allure-results --clean-alluredir
     environment:
       - BASE_URL=http://bank-server:8000
       - DB_HOST=db
+      - DB_USER=root
       - DB_PASSWORD=123456789Yj
       - DB_NAME=bank_core
     depends_on:
-      - bank-server
+      bank-server:
+        condition: service_healthy   # 等银行服务 HTTP 就绪才开始测试
     networks:
       - banknet
 
