@@ -2,9 +2,9 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# 安装系统依赖（PyMySQL 需要）
+# 安装系统依赖（PyMySQL 需要，healthcheck 需要 curl）
 RUN apt-get update && apt-get install -y \
-    default-libmysqlclient-dev gcc \
+    default-libmysqlclient-dev gcc curl \
     && rm -rf /var/lib/apt/lists/*
 
 # 先安装依赖（利用 Docker 层缓存，依赖不变就不重装）
