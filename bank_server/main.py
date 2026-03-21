@@ -4,7 +4,7 @@ FastAPI 银行核心业务系统 - 主入口
 Swagger 文档：http://127.0.0.1:8000/docs
 """
 from fastapi import FastAPI
-from bank_server.routers import auth, account, transaction
+from bank_server.routers import auth, account, transaction, upload, report
 
 app = FastAPI(
     title="银行核心业务 API",
@@ -22,6 +22,8 @@ app = FastAPI(
 app.include_router(auth.router)
 app.include_router(account.router)
 app.include_router(transaction.router)
+app.include_router(upload.router)    # KYC 文件上传
+app.include_router(report.router)    # 异步报表生成
 
 
 @app.get("/", tags=["健康检查"])
