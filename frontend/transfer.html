@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>星辰银行 - 转账汇款</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar-placeholder"></div>
+  <main class="main-content">
+    <div class="page-header">
+      <div class="page-title">💸 转账汇款</div>
+      <div class="page-subtitle">行内转账 · 跨行汇款（0.1% 手续费）</div>
+    </div>
+
+    <div class="grid grid-2">
+      <!-- 行内转账 -->
+      <div class="card">
+        <div class="font-bold mb-16">🏦 行内转账</div>
+        <div class="form-group">
+          <label class="form-label">付款账号</label>
+          <select id="inner-from" class="form-input"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">收款账号</label>
+          <input id="inner-to" class="form-input" placeholder="请输入行内账号（16位）">
+        </div>
+        <div class="form-group">
+          <label class="form-label">转账金额（元）</label>
+          <input id="inner-amount" class="form-input" type="number" min="1" placeholder="请输入金额">
+        </div>
+        <div class="form-group">
+          <label class="form-label">备注（选填）</label>
+          <input id="inner-remark" class="form-input" placeholder="如：还款、生活费">
+        </div>
+        <button class="btn btn-primary btn-full" onclick="doTransfer()">确认转账</button>
+      </div>
+
+      <!-- 跨行转账 -->
+      <div class="card">
+        <div class="font-bold mb-16">🌐 跨行汇款</div>
+        <div class="form-group">
+          <label class="form-label">付款账号</label>
+          <select id="cross-from" class="form-input"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">收款银行</label>
+          <select id="cross-bank" class="form-input">
+            <option value="ICBC">中国工商银行（ICBC）</option>
+            <option value="ABC">中国农业银行（ABC）</option>
+            <option value="BOC">中国银行（BOC）</option>
+            <option value="CCB">中国建设银行（CCB）</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">收款账号</label>
+          <input id="cross-to" class="form-input" placeholder="跨行收款账号">
+        </div>
+        <div class="form-group">
+          <label class="form-label">转账金额（元）</label>
+          <input id="cross-amount" class="form-input" type="number" min="1" placeholder="请输入金额">
+        </div>
+        <p class="text-muted text-sm mb-16">跨行汇款收取 0.1% 手续费，由付款方承担</p>
+        <button class="btn btn-primary btn-full" onclick="doCrossTransfer()">确认汇款</button>
+      </div>
+    </div>
+
+    <!-- 转账成功回执 -->
+    <div id="receipt" class="card mt-24 hidden">
+      <div class="font-bold mb-16 text-success">✅ 转账成功</div>
+      <div id="receipt-content"></div>
+    </div>
+  </main>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+<script src="js/api.js"></script>
+<script src="js/sidebar.js"></script>
+<script>
+  (async () => {
+    if (!Auth.check()) return;
+    const res = await BankAPI.getAccounts();
+    if (!res) return;
+    const active = res.data.filter(a => a.status === 'active');
+    const opts = active.map(a => `<option value="${a.account_no}">${a.account_no} (${fmt.money(a.balance)})</option>`).join('');
+    document.getElementById('inner-from').innerHTML = opts;
+    document.getElementById('cross-from').innerHTML = opts;
+  })();
+
+  async function doTransfer() {
+    const from = document.getElementById('inner-from').value;
+    const to   = document.getElementById('inner-to').value.trim();
+    const amt  = parseFloat(document.getElementById('inner-amount').value);
+    const rem  = document.getElementById('inner-remark').value.trim();
+    if (!to || !amt) return Toast.error('请填写完整信息');
+    const res = await BankAPI.transfer(from, to, amt, rem || undefined);
+    if (!res) return;
+    showReceipt({ type: '行内转账', from, to, amount: amt, fee: 0, balance: res.data.from_balance });
+  }
+
+  async function doCrossTransfer() {
+    const from = document.getElementById('cross-from').value;
+    const bank = document.getElementById('cross-bank').value;
+    const to   = document.getElementById('cross-to').value.trim();
+    const amt  = parseFloat(document.getElementById('cross-amount').value);
+    if (!to || !amt) return Toast.error('请填写完整信息');
+    const res = await BankAPI.crossTransfer(from, bank, to, amt);
+    if (!res) return;
+    showReceipt({ type: '跨行汇款', from, to: `${bank} · ${to}`, amount: amt, fee: res.data.fee, balance: res.data.from_balance });
+  }
+
+  function showReceipt({ type, from, to, amount, fee, balance }) {
+    document.getElementById('receipt').classList.remove('hidden');
+    document.getElementById('receipt-content').innerHTML = `
+      <div class="grid grid-2 gap-16">
+        <div><div class="text-muted text-sm">交易类型</div><div class="font-bold">${type}</div></div>
+        <div><div class="text-muted text-sm">付款账号</div><div class="font-bold">${from}</div></div>
+        <div><div class="text-muted text-sm">收款账号</div><div class="font-bold">${to}</div></div>
+        <div><div class="text-muted text-sm">转账金额</div><div class="font-bold text-danger">${fmt.money(amount)}</div></div>
+        <div><div class="text-muted text-sm">手续费</div><div class="font-bold">${fmt.money(fee)}</div></div>
+        <div><div class="text-muted text-sm">付款后余额</div><div class="font-bold text-success">${fmt.money(balance)}</div></div>
+      </div>`;
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+  }
+</script>
+</body>
+</html>

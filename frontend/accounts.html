@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>星辰银行 - 账户管理</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar-placeholder"></div>
+  <main class="main-content">
+    <div class="page-header flex-between">
+      <div>
+        <div class="page-title">🏦 账户管理</div>
+        <div class="page-subtitle">管理您的所有银行账户</div>
+      </div>
+      <button class="btn btn-primary" onclick="openCreateModal()">+ 开立新账户</button>
+    </div>
+
+    <div class="grid grid-3" id="account-grid"></div>
+
+    <!-- 存取款操作区 -->
+    <div class="card mt-24">
+      <div class="font-bold mb-16">💰 存取款</div>
+      <div class="grid grid-3">
+        <div class="form-group">
+          <label class="form-label">选择账号</label>
+          <select id="op-account" class="form-input"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">金额（元）</label>
+          <input id="op-amount" class="form-input" type="number" min="1" placeholder="请输入金额">
+        </div>
+        <div class="form-group" style="padding-top:24px">
+          <button class="btn btn-success btn-full" onclick="doDeposit()">💰 存款</button>
+        </div>
+      </div>
+      <div class="grid grid-3">
+        <div></div><div></div>
+        <button class="btn btn-danger btn-full" onclick="doWithdraw()">🏧 取款</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- 开户弹窗 -->
+<div id="create-modal" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">开立新账户</div>
+    <div class="form-group">
+      <label class="form-label">账户类型</label>
+      <select id="new-account-type" class="form-input">
+        <option value="savings">储蓄账户（存款利率 2.5%）</option>
+        <option value="current">活期账户（存款利率 0.35%）</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" onclick="doCreate()">确认开户</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+<script src="js/api.js"></script>
+<script src="js/sidebar.js"></script>
+<script>
+  (async () => {
+    if (!Auth.check()) return;
+    await loadAccounts();
+  })();
+
+  async function loadAccounts() {
+    const res = await BankAPI.getAccounts();
+    if (!res) return;
+    const grid = document.getElementById('account-grid');
+    const sel  = document.getElementById('op-account');
+
+    grid.innerHTML = res.data.map(a => `
+      <div class="account-card">
+        <div class="account-number">${a.account_no.replace(/(\d{4})/g,'$1 ').trim()}</div>
+        <div class="account-balance"><span>¥ </span>${parseFloat(a.balance).toLocaleString('zh-CN',{minimumFractionDigits:2})}</div>
+        <div class="flex-between mt-8">
+          <span class="account-type-badge ${a.account_type==='savings'?'badge-savings':'badge-current'}">${a.account_type==='savings'?'储蓄账户':'活期账户'}</span>
+          <span class="badge ${a.status==='active'?'badge-green':'badge-red'}">${a.status==='active'?'正常':'已停用'}</span>
+        </div>
+        ${a.status==='active'&&parseFloat(a.balance)===0 ? `<button class="btn btn-danger btn-sm btn-full mt-16" onclick="doClose('${a.account_no}')">注销账户</button>` : ''}
+      </div>`).join('') || '<div class="text-muted text-center" style="grid-column:1/-1;padding:40px">暂无账户</div>';
+
+    const active = res.data.filter(a => a.status === 'active');
+    sel.innerHTML = active.map(a => `<option value="${a.account_no}">${a.account_no} (余额: ${fmt.money(a.balance)})</option>`).join('');
+  }
+
+  async function doDeposit() {
+    const account_no = document.getElementById('op-account').value;
+    const amount = parseFloat(document.getElementById('op-amount').value);
+    if (!amount || amount <= 0) return Toast.error('请输入有效金额');
+    const res = await BankAPI.deposit(account_no, amount);
+    if (!res) return;
+    Toast.success(`存款成功！新余额: ${fmt.money(res.data.balance)}`);
+    await loadAccounts();
+  }
+
+  async function doWithdraw() {
+    const account_no = document.getElementById('op-account').value;
+    const amount = parseFloat(document.getElementById('op-amount').value);
+    if (!amount || amount <= 0) return Toast.error('请输入有效金额');
+    const res = await BankAPI.withdraw(account_no, amount);
+    if (!res) return;
+    Toast.success(`取款成功！新余额: ${fmt.money(res.data.balance)}`);
+    await loadAccounts();
+  }
+
+  async function doClose(account_no) {
+    if (!confirm(`确认注销账号 ${account_no}？此操作不可撤回`)) return;
+    const res = await del(`/api/account/${account_no}`);
+    if (!res) return;
+    Toast.success('账户已注销');
+    await loadAccounts();
+  }
+
+  function openCreateModal() { document.getElementById('create-modal').classList.add('open'); }
+  function closeModal()      { document.getElementById('create-modal').classList.remove('open'); }
+
+  async function doCreate() {
+    const account_type = document.getElementById('new-account-type').value;
+    const res = await BankAPI.createAccount(account_type);
+    if (!res) return;
+    Toast.success(`账户开立成功！账号：${res.data.account_no}`);
+    closeModal();
+    await loadAccounts();
+  }
+</script>
+</body>
+</html>

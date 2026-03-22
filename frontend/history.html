@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>星辰银行 - 交易流水</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar-placeholder"></div>
+  <main class="main-content">
+    <div class="page-header">
+      <div class="page-title">📜 交易流水</div>
+      <div class="page-subtitle">查询所有历史交易记录</div>
+    </div>
+
+    <!-- 过滤器 -->
+    <div class="card mb-16">
+      <div class="grid grid-4 gap-12">
+        <div class="form-group" style="margin:0">
+          <label class="form-label">账号</label>
+          <select id="filter-account" class="form-input"><option value="">全部账号</option></select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">交易类型</label>
+          <select id="filter-type" class="form-input">
+            <option value="">全部类型</option>
+            <option value="deposit">存款</option>
+            <option value="withdraw">取款</option>
+            <option value="transfer">行内转账</option>
+            <option value="cross_transfer">跨行汇款</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">开始日期</label>
+          <input id="filter-start" class="form-input" type="date">
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">结束日期</label>
+          <input id="filter-end" class="form-input" type="date">
+        </div>
+      </div>
+      <div class="mt-16 flex gap-8">
+        <button class="btn btn-primary" onclick="loadHistory(1)">🔍 查询</button>
+        <button class="btn btn-secondary" onclick="resetFilter()">重置</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="flex-between mb-16">
+        <div class="font-bold">交易记录 <span id="total-label" class="text-muted text-sm"></span></div>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>时间</th><th>流水号</th><th>类型</th><th>付款账号</th><th>收款账号</th><th>金额</th><th>手续费</th><th>状态</th></tr></thead>
+          <tbody id="txn-tbody"><tr><td colspan="8" class="text-center text-muted">点击查询加载数据</td></tr></tbody>
+        </table>
+      </div>
+      <!-- 分页 -->
+      <div id="pagination" class="flex-center gap-8 mt-16"></div>
+    </div>
+  </main>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+<script src="js/api.js"></script>
+<script src="js/sidebar.js"></script>
+<script>
+  let currentPage = 1;
+  (async () => {
+    if (!Auth.check()) return;
+    const res = await BankAPI.getAccounts();
+    if (res) {
+      const sel = document.getElementById('filter-account');
+      res.data.filter(a => a.status === 'active').forEach(a => {
+        sel.innerHTML += `<option value="${a.account_no}">${a.account_no}</option>`;
+      });
+    }
+    await loadHistory(1);
+  })();
+
+  async function loadHistory(page) {
+    currentPage = page;
+    const params = { page, page_size: 15 };
+    const account = document.getElementById('filter-account').value;
+    const type    = document.getElementById('filter-type').value;
+    const start   = document.getElementById('filter-start').value;
+    const end     = document.getElementById('filter-end').value;
+    if (account) params.account_no  = account;
+    if (type)    params.txn_type    = type;
+    if (start)   params.start_date  = start;
+    if (end)     params.end_date    = end;
+
+    const res = await BankAPI.history(params);
+    if (!res) return;
+
+    document.getElementById('total-label').textContent = `共 ${res.total} 条`;
+    const tbody = document.getElementById('txn-tbody');
+    tbody.innerHTML = res.data.length === 0
+      ? '<tr><td colspan="8" class="text-center text-muted">暂无交易记录</td></tr>'
+      : res.data.map(t => `<tr>
+          <td>${fmt.date(t.created_at)}</td>
+          <td class="text-muted text-sm">${t.txn_id}</td>
+          <td class="primary">${fmt.txnType[t.txn_type]||t.txn_type}</td>
+          <td>${t.from_account || '-'}</td>
+          <td>${t.to_account || '-'}</td>
+          <td class="${t.to_account?'text-success':'text-danger'} font-bold">${fmt.money(t.amount)}</td>
+          <td>${t.fee > 0 ? fmt.money(t.fee) : '-'}</td>
+          <td><span class="badge badge-green">成功</span></td>
+        </tr>`).join('');
+
+    // 分页
+    const pages = res.total_pages;
+    let pg = '';
+    for (let i = 1; i <= pages; i++) {
+      pg += `<button class="btn ${i===page?'btn-primary':'btn-secondary'} btn-sm" onclick="loadHistory(${i})">${i}</button>`;
+    }
+    document.getElementById('pagination').innerHTML = pg;
+  }
+
+  function resetFilter() {
+    ['filter-account','filter-type','filter-start','filter-end'].forEach(id => {
+      const el = document.getElementById(id);
+      el.value = '';
+    });
+    loadHistory(1);
+  }
+</script>
+</body>
+</html>

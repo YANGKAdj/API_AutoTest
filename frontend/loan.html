@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>星辰银行 - 贷款中心</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar-placeholder"></div>
+  <main class="main-content">
+    <div class="page-header flex-between">
+      <div>
+        <div class="page-title">📈 贷款中心</div>
+        <div class="page-subtitle">年化利率 4.80% · 最高 50 万 · 自动放款</div>
+      </div>
+      <button class="btn btn-primary" onclick="openLoanModal()">申请贷款</button>
+    </div>
+
+    <div id="loan-list"></div>
+  </main>
+</div>
+
+<!-- 申请贷款弹窗 -->
+<div id="loan-modal" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">📋 申请贷款</div>
+    <div class="form-group">
+      <label class="form-label">放款账号</label>
+      <select id="loan-account" class="form-input"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">贷款金额（元）</label>
+      <input id="loan-amount" class="form-input" type="number" min="1000" max="500000" placeholder="最低 1,000 元，最高 50 万">
+    </div>
+    <div class="form-group">
+      <label class="form-label">贷款期限</label>
+      <select id="loan-term" class="form-input">
+        <option value="3">3 个月</option>
+        <option value="6">6 个月</option>
+        <option value="12" selected>12 个月</option>
+        <option value="24">24 个月</option>
+        <option value="36">36 个月</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">贷款用途</label>
+      <input id="loan-purpose" class="form-input" placeholder="如：装修、医疗、消费">
+    </div>
+    <div id="loan-preview" class="card mt-8 hidden">
+      <div class="text-sm text-muted">月还款额预计：<span id="preview-monthly" class="text-primary font-bold"></span></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeLoanModal()">取消</button>
+      <button class="btn btn-primary" onclick="doApplyLoan()">提交申请</button>
+    </div>
+  </div>
+</div>
+
+<!-- 还款弹窗 -->
+<div id="repay-modal" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">💳 贷款还款</div>
+    <input type="hidden" id="repay-loan-id">
+    <div class="form-group">
+      <label class="form-label">还款账号</label>
+      <select id="repay-account" class="form-input"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">还款金额（元）</label>
+      <input id="repay-amount" class="form-input" type="number" min="1">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeRepayModal()">取消</button>
+      <button class="btn btn-primary" onclick="doRepay()">确认还款</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+<script src="js/api.js"></script>
+<script src="js/sidebar.js"></script>
+<script>
+  let accounts = [];
+  (async () => {
+    if (!Auth.check()) return;
+    const res = await BankAPI.getAccounts();
+    if (res) {
+      accounts = res.data.filter(a => a.status === 'active');
+      const opts = accounts.map(a => `<option value="${a.account_no}">${a.account_no}</option>`).join('');
+      document.getElementById('loan-account').innerHTML = opts;
+      document.getElementById('repay-account').innerHTML = opts;
+    }
+    await loadLoans();
+  })();
+
+  async function loadLoans() {
+    const res = await BankAPI.listLoans();
+    const el = document.getElementById('loan-list');
+    if (!res || res.data.length === 0) {
+      el.innerHTML = '<div class="card text-center text-muted" style="padding:60px">暂无贷款记录，点击右上角申请贷款</div>';
+      return;
+    }
+    el.innerHTML = `<div class="card"><div class="table-wrapper"><table>
+      <thead><tr><th>贷款编号</th><th>金额</th><th>期限</th><th>月供</th><th>剩余本金</th><th>用途</th><th>状态</th><th>操作</th></tr></thead>
+      <tbody>${res.data.map(l => `<tr>
+        <td class="primary">${l.loan_id}</td>
+        <td>${fmt.money(l.amount)}</td>
+        <td>${l.term_months}个月</td>
+        <td class="text-warning">${fmt.money(l.monthly_payment)}</td>
+        <td>${fmt.money(l.remaining)}</td>
+        <td>${l.purpose || '-'}</td>
+        <td><span class="badge ${l.status==='active'?'badge-yellow':'badge-green'}">${l.status==='active'?'还款中':'已还清'}</span></td>
+        <td>${l.status==='active'?`<button class="btn btn-secondary btn-sm" onclick="openRepay('${l.loan_id}',${l.monthly_payment})">还款</button>`:'--'}</td>
+      </tr>`).join('')}</tbody>
+    </table></div></div>`;
+  }
+
+  function openLoanModal()  { document.getElementById('loan-modal').classList.add('open'); }
+  function closeLoanModal() { document.getElementById('loan-modal').classList.remove('open'); }
+  function openRepay(id, monthly) {
+    document.getElementById('repay-loan-id').value = id;
+    document.getElementById('repay-amount').value = monthly;
+    document.getElementById('repay-modal').classList.add('open');
+  }
+  function closeRepayModal() { document.getElementById('repay-modal').classList.remove('open'); }
+
+  async function doApplyLoan() {
+    const account_no   = document.getElementById('loan-account').value;
+    const amount       = parseFloat(document.getElementById('loan-amount').value);
+    const term_months  = parseInt(document.getElementById('loan-term').value);
+    const purpose      = document.getElementById('loan-purpose').value || '个人消费';
+    if (!amount) return Toast.error('请填写贷款金额');
+    const res = await BankAPI.applyLoan({ account_no, amount, term_months, purpose });
+    if (!res) return;
+    Toast.success(`贷款申请成功！每月还款额 ${fmt.money(res.data.monthly_payment)}`);
+    closeLoanModal();
+    await loadLoans();
+  }
+
+  async function doRepay() {
+    const loan_id    = document.getElementById('repay-loan-id').value;
+    const account_no = document.getElementById('repay-account').value;
+    const amount     = parseFloat(document.getElementById('repay-amount').value);
+    if (!amount) return Toast.error('请填写还款金额');
+    const res = await BankAPI.repayLoan(loan_id, { account_no, amount });
+    if (!res) return;
+    Toast.success(res.msg);
+    closeRepayModal();
+    await loadLoans();
+  }
+</script>
+</body>
+</html>

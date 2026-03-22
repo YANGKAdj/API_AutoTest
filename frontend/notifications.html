@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>星辰银行 - 消息通知</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar-placeholder"></div>
+  <main class="main-content">
+    <div class="page-header flex-between">
+      <div>
+        <div class="page-title">🔔 消息通知</div>
+        <div class="page-subtitle">交易提醒与系统消息</div>
+      </div>
+      <button class="btn btn-secondary" onclick="markAll()">全部标为已读</button>
+    </div>
+
+    <div class="card">
+      <div id="notif-list" style="display:flex;flex-direction:column;gap:12px">
+        <div class="text-center text-muted" style="padding:40px">加载中...</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+<script src="js/api.js"></script>
+<script src="js/sidebar.js"></script>
+<script>
+  const typeIcon = { transaction:'💳', system:'⚙️', marketing:'🎁' };
+
+  (async () => {
+    if (!Auth.check()) return;
+    await loadNotifs();
+  })();
+
+  async function loadNotifs() {
+    const res = await BankAPI.getNotifications(false);
+    const el = document.getElementById('notif-list');
+    if (!res || res.data.length === 0) {
+      el.innerHTML = '<div class="text-center text-muted" style="padding:40px">暂无通知</div>';
+      return;
+    }
+    el.innerHTML = res.data.map(n => `
+      <div id="notif-${n.id}" style="display:flex; gap:16px; padding:16px; border-radius:var(--radius-sm);
+           background:${n.is_read?'transparent':'var(--bg-hover)'}; border:1px solid var(--border); transition:var(--transition)">
+        <div style="font-size:24px; padding-top:4px">${typeIcon[n.type]||'📢'}</div>
+        <div style="flex:1">
+          <div class="flex-between">
+            <div class="font-bold" style="font-size:15px">${n.title}</div>
+            <div class="text-muted text-sm">${fmt.date(n.created_at)}</div>
+          </div>
+          <div class="text-secondary text-sm mt-8">${n.content}</div>
+        </div>
+        ${!n.is_read ? `<button class="btn btn-secondary btn-sm" style="align-self:flex-start;white-space:nowrap" onclick="markOne(${n.id})">标为已读</button>` : ''}
+      </div>`).join('');
+  }
+
+  async function markOne(id) {
+    const res = await BankAPI.markRead(id);
+    if (!res) return;
+    const el = document.getElementById(`notif-${id}`);
+    if (el) { el.style.background = 'transparent'; el.querySelector('button')?.remove(); }
+    refreshNotifBadge();
+  }
+
+  async function markAll() {
+    const res = await BankAPI.markAllRead();
+    if (!res) return;
+    Toast.success(res.msg);
+    await loadNotifs();
+    refreshNotifBadge();
+  }
+</script>
+</body>
+</html>

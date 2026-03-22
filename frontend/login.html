@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>星辰银行 - 安全登录</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="login-page">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-big">🏦</div>
+      <h1>星辰银行</h1>
+      <p>XingChen Bank · 专业 · 安全 · 便捷</p>
+    </div>
+
+    <div class="tab-group">
+      <button class="tab-btn active" id="tab-login" onclick="switchTab('login')">登录</button>
+      <button class="tab-btn" id="tab-register" onclick="switchTab('register')">注册</button>
+    </div>
+
+    <!-- 登录表单 -->
+    <div id="form-login">
+      <div class="form-group">
+        <label class="form-label">用户名</label>
+        <input id="login-username" class="form-input" type="text" placeholder="请输入用户名">
+      </div>
+      <div class="form-group">
+        <label class="form-label">登录密码</label>
+        <input id="login-password" class="form-input" type="password" placeholder="请输入密码">
+      </div>
+      <button class="btn btn-primary btn-full btn-lg mt-8" onclick="doLogin()">安全登录</button>
+      <p class="text-center text-muted text-sm mt-16">测试账户：zhang_san / Test@1234</p>
+    </div>
+
+    <!-- 注册表单 -->
+    <div id="form-register" class="hidden">
+      <div class="form-group">
+        <label class="form-label">用户名（至少3位）</label>
+        <input id="reg-username" class="form-input" type="text" placeholder="请设置用户名">
+      </div>
+      <div class="form-group">
+        <label class="form-label">手机号</label>
+        <input id="reg-phone" class="form-input" type="tel" placeholder="请输入11位手机号">
+      </div>
+      <div class="form-group">
+        <label class="form-label">登录密码（至少8位）</label>
+        <input id="reg-password" class="form-input" type="password" placeholder="请设置密码">
+      </div>
+      <button class="btn btn-primary btn-full btn-lg mt-8" onclick="doRegister()">立即注册</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+<script src="js/api.js"></script>
+<script>
+  if (Auth.getToken()) location.href = 'dashboard.html';
+
+  function switchTab(tab) {
+    document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+    document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+    document.getElementById('form-login').classList.toggle('hidden', tab !== 'login');
+    document.getElementById('form-register').classList.toggle('hidden', tab !== 'register');
+  }
+
+  async function doLogin() {
+    const u = document.getElementById('login-username').value.trim();
+    const p = document.getElementById('login-password').value;
+    if (!u || !p) return Toast.error('请填写完整信息');
+    const res = await BankAPI.login(u, p);
+    if (!res) return;
+    Auth.setToken(res.data.token);
+    Auth.setUser({ username: u });
+    Toast.success('登录成功，跳转中...');
+    setTimeout(() => location.href = 'dashboard.html', 800);
+  }
+
+  async function doRegister() {
+    const username = document.getElementById('reg-username').value.trim();
+    const phone    = document.getElementById('reg-phone').value.trim();
+    const password = document.getElementById('reg-password').value;
+    if (!username || !phone || !password) return Toast.error('请填写完整信息');
+    const res = await BankAPI.register({ username, phone, password });
+    if (!res) return;
+    Auth.setToken(res.data.token);
+    Auth.setUser({ username });
+    Toast.success('注册成功！');
+    setTimeout(() => location.href = 'dashboard.html', 800);
+  }
+
+  document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+</script>
+</body>
+</html>

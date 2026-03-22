@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>星辰银行 - 控制台</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app-layout">
+  <!-- 侧边栏 -->
+  <div id="sidebar-placeholder"></div>
+
+  <!-- 主内容 -->
+  <main class="main-content">
+    <div class="page-header flex-between">
+      <div>
+        <div class="page-title">👋 欢迎回来，<span id="username-display">用户</span></div>
+        <div class="page-subtitle">星辰银行 · 综合金融服务平台</div>
+      </div>
+      <div id="greeting-time" class="text-muted text-sm"></div>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="grid grid-4 mb-16" id="stats-row">
+      <div class="card">
+        <div class="card-title">💰 总资产</div>
+        <div class="card-value stat-number" id="total-balance">--</div>
+        <div class="card-meta">所有账户合计</div>
+      </div>
+      <div class="card">
+        <div class="card-title">🏦 账户数量</div>
+        <div class="card-value stat-number" id="account-count">--</div>
+        <div class="card-meta">活跃账户</div>
+      </div>
+      <div class="card">
+        <div class="card-title">📋 贷款余额</div>
+        <div class="card-value stat-number" id="loan-balance">--</div>
+        <div class="card-meta">待还本金</div>
+      </div>
+      <div class="card">
+        <div class="card-title">🔔 未读通知</div>
+        <div class="card-value stat-number" id="unread-count">--</div>
+        <div class="card-meta">条未读消息</div>
+      </div>
+    </div>
+
+    <!-- 账户卡片 -->
+    <div class="card mb-16">
+      <div class="flex-between mb-16">
+        <div class="font-bold">我的账户</div>
+        <a href="accounts.html" class="btn btn-secondary btn-sm">管理账户</a>
+      </div>
+      <div class="grid grid-3" id="account-cards">
+        <div class="text-muted text-sm text-center" style="grid-column:1/-1;padding:20px">加载中...</div>
+      </div>
+    </div>
+
+    <!-- 最近交易 -->
+    <div class="card">
+      <div class="flex-between mb-16">
+        <div class="font-bold">最近交易</div>
+        <a href="history.html" class="btn btn-secondary btn-sm">查看全部</a>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr><th>时间</th><th>类型</th><th>账号</th><th>金额</th><th>状态</th></tr>
+          </thead>
+          <tbody id="recent-txn">
+            <tr><td colspan="5" class="text-center text-muted">加载中...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+<script src="js/api.js"></script>
+<script src="js/sidebar.js"></script>
+<script>
+  (async () => {
+    if (!Auth.check()) return;
+    document.getElementById('username-display').textContent = Auth.getUser().username || '用户';
+
+    const now = new Date();
+    const h = now.getHours();
+    const greet = h < 12 ? '☀️ 早上好' : h < 18 ? '🌤️ 下午好' : '🌙 晚上好';
+    document.getElementById('greeting-time').textContent = `${greet} · ${now.toLocaleDateString('zh-CN')}`;
+
+    // 并行加载数据
+    const [accts, loans, notifs] = await Promise.all([
+      BankAPI.getAccounts(),
+      BankAPI.listLoans(),
+      BankAPI.getNotifications(true),
+    ]);
+
+    if (accts) {
+      const active = accts.data.filter(a => a.status === 'active');
+      const total  = active.reduce((s, a) => s + parseFloat(a.balance), 0);
+      document.getElementById('total-balance').textContent = fmt.money(total);
+      document.getElementById('account-count').textContent = active.length;
+
+      // 账户卡片
+      document.getElementById('account-cards').innerHTML = active.length === 0
+        ? '<div class="text-muted text-sm text-center" style="grid-column:1/-1;padding:20px">暂无账户，<a href="accounts.html">立即开户</a></div>'
+        : active.map(a => `
+          <div class="account-card">
+            <div class="account-number">${a.account_no.replace(/(\d{4})/g, '$1 ').trim()}</div>
+            <div class="account-balance"><span>¥ </span>${parseFloat(a.balance).toLocaleString('zh-CN', {minimumFractionDigits:2})}</div>
+            <div><span class="account-type-badge ${a.account_type==='savings'?'badge-savings':'badge-current'}">${a.account_type==='savings'?'储蓄账户':'活期账户'}</span></div>
+          </div>`).join('');
+    }
+
+    if (loans) {
+      const activeLoan = loans.data.filter(l => l.status === 'active');
+      const loanTotal  = activeLoan.reduce((s, l) => s + parseFloat(l.remaining), 0);
+      document.getElementById('loan-balance').textContent = fmt.money(loanTotal);
+    }
+
+    if (notifs) {
+      document.getElementById('unread-count').textContent = notifs.unread_count;
+    }
+
+    // 最近交易
+    const txns = await BankAPI.history({ page_size: 5 });
+    const tbody = document.getElementById('recent-txn');
+    if (txns && txns.data.length > 0) {
+      tbody.innerHTML = txns.data.map(t => `
+        <tr>
+          <td>${fmt.date(t.created_at)}</td>
+          <td class="primary">${fmt.txnType[t.txn_type] || t.txn_type}</td>
+          <td>${t.from_account || t.to_account || '-'}</td>
+          <td class="${t.to_account?'text-success':'text-danger'}">${t.to_account?'+':'-'}${fmt.money(t.amount)}</td>
+          <td><span class="badge badge-green">成功</span></td>
+        </tr>`).join('');
+    } else {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">暂无交易记录</td></tr>';
+    }
+  })();
+</script>
+</body>
+</html>
