@@ -17,6 +17,20 @@ services:
     networks:
       - banknet
 
+  # ── 1.5 Redis 缓存队列 ──────────────────────────────────────
+  redis:
+    image: redis:7.0-alpine
+    container_name: bank_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - banknet
+
   # ── 2. 银行 API 服务（FastAPI + uvicorn） ─────────────────
   bank-server:
     build: .
@@ -27,10 +41,14 @@ services:
       - DB_USER=root
       - DB_PASSWORD=123456789Yj
       - DB_NAME=bank_core
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     ports:
       - "8000:8000"
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -44,7 +62,11 @@ services:
   # ── 3. 测试执行容器 ────────────────────────────────────────
   api-tests:
     build: .
-    command: pytest -q --alluredir=./allure-results --clean-alluredir
+    command: >
+      sh -c "pytest test_cases/ -v
+             --alluredir=./allure-results
+             --tb=short
+             -x || true"
     environment:
       - BASE_URL=http://bank-server:8000
       - DB_HOST=db
@@ -53,9 +75,15 @@ services:
       - DB_NAME=bank_core
     depends_on:
       bank-server:
-        condition: service_healthy   # 等银行服务 HTTP 就绪才开始测试
+        condition: service_healthy
+    volumes:
+      # 把 allure-results 持久化到宿主机，防止容器销毁后报告丢失
+      - ./allure-results:/app/allure-results
     networks:
       - banknet
+    profiles:
+      # 不随 docker compose up 自动启动，由 Jenkinsfile 单独 docker compose run
+      - test
 
 networks:
   banknet:

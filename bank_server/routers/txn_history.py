@@ -6,18 +6,21 @@ GET /api/transactions/{txn_id}       — 查询单条流水详情
 from fastapi import APIRouter, HTTPException, Header, Query
 from typing import Optional
 from bank_server.database import get_conn
+from bank_server.utils.jwt_handler import extract_user_id
 
 router = APIRouter(prefix="/api/transactions", tags=["交易流水"])
 
 
 def _get_user(token: str, conn):
-    if not token or not token.startswith("BANK_TOKEN_"):
-        raise HTTPException(status_code=401, detail={"code": 401, "msg": "Token 无效"})
+    """从 JWT Token 中解析用户"""
+    # 使用 JWT 工具提取用户ID
+    user_id = extract_user_id(token)
+    
     cur = conn.cursor()
-    cur.execute("SELECT id, username FROM users WHERE token = %s", (token,))
+    cur.execute("SELECT id, username FROM users WHERE id = %s", (user_id,))
     user = cur.fetchone()
     if not user:
-        raise HTTPException(status_code=401, detail={"code": 401, "msg": "Token 不存在"})
+        raise HTTPException(status_code=401, detail={"code": 401, "msg": "用户不存在"})
     return user
 
 

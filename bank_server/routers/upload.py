@@ -5,6 +5,7 @@ POST /api/account/{account_no}/kyc-upload
 import os
 from fastapi import APIRouter, UploadFile, File, HTTPException, Header
 from bank_server.database import get_conn
+from bank_server.utils.jwt_handler import extract_user_id
 
 router = APIRouter(prefix="/api/account", tags=["文件上传"])
 
@@ -13,20 +14,9 @@ ALLOWED_TYPES = {"image/jpeg", "image/png", "application/pdf"}
 MAX_SIZE_BYTES = 5 * 1024 * 1024  # 5MB
 
 
-def _verify_token(token: str) -> dict:
-    """验证 Token 并返回用户信息"""
-    if not token or not token.startswith("BANK_TOKEN_"):
-        raise HTTPException(status_code=401, detail={"code": 401, "msg": "Token 无效"})
-    conn = get_conn()
-    try:
-        cur = conn.cursor()
-        cur.execute("SELECT id, username FROM users WHERE token = %s", (token,))
-        user = cur.fetchone()
-        if not user:
-            raise HTTPException(status_code=401, detail={"code": 401, "msg": "Token 不存在"})
-        return user
-    finally:
-        conn.close()
+def _verify_token(token: str) -> int:
+    """验证 JWT Token 并返回用户ID"""
+    return extract_user_id(token)
 
 
 @router.post("/{account_no}/kyc-upload")

@@ -14,7 +14,8 @@ class TestRegister:
     def test_register_success(self, temp_user):
         """正向：注册成功（temp_user fixture 已包含注册动作，断言其结果）"""
         # temp_user 已能成功创建并登录，说明注册流程通过
-        assert temp_user["token"].startswith("BANK_TOKEN_")
+        # JWT token 格式检查：应以 eyJ 开头（Base64编码的JSON）
+        assert temp_user["token"].startswith("eyJ")
 
     def test_register_duplicate_phone(self):
         """异常：手机号重复注册应返回 400"""
@@ -38,7 +39,8 @@ class TestLogin:
         data = res.json()
         assert data["code"] == 200
         assert "token" in data
-        assert data["token"].startswith("BANK_TOKEN_")
+        # JWT token 格式检查：应以 eyJ 开头（Base64编码的JSON）
+        assert data["token"].startswith("eyJ")
 
     def test_login_wrong_password(self):
         """异常：密码错误应返回 401"""

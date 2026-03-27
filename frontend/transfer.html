@@ -96,7 +96,11 @@
     if (!to || !amt) return Toast.error('请填写完整信息');
     const res = await BankAPI.transfer(from, to, amt, rem || undefined);
     if (!res) return;
-    showReceipt({ type: '行内转账', from, to, amount: amt, fee: 0, balance: res.data.from_balance });
+    
+    // 接口不返回余额，需额外查一次
+    const bRes = await BankAPI.getBalance(from);
+    const balance = bRes ? bRes.data.balance : '--';
+    showReceipt({ type: '行内转账', from, to, amount: amt, fee: 0, balance });
   }
 
   async function doCrossTransfer() {
@@ -107,7 +111,11 @@
     if (!to || !amt) return Toast.error('请填写完整信息');
     const res = await BankAPI.crossTransfer(from, bank, to, amt);
     if (!res) return;
-    showReceipt({ type: '跨行汇款', from, to: `${bank} · ${to}`, amount: amt, fee: res.data.fee, balance: res.data.from_balance });
+    
+    // 接口不返回余额，需额外查一次
+    const bRes = await BankAPI.getBalance(from);
+    const balance = bRes ? bRes.data.balance : '--';
+    showReceipt({ type: '跨行汇款', from, to: `${bank} · ${to}`, amount: amt, fee: res.fee, balance });
   }
 
   function showReceipt({ type, from, to, amount, fee, balance }) {

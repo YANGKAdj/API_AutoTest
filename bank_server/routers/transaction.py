@@ -6,6 +6,7 @@ from datetime import datetime
 from fastapi import APIRouter, Header, HTTPException, Query
 from bank_server.models import DepositRequest, WithdrawRequest, TransferRequest, CrossBankTransferRequest
 from bank_server import database as db
+from bank_server.utils.jwt_handler import extract_user_id
 
 router = APIRouter(prefix="/api/transaction", tags=["交易模块"])
 
@@ -13,15 +14,19 @@ CROSS_BANK_FEE_RATE = 0.001  # 跨行转账手续费 0.1%
 
 
 def _get_user_from_token(token: str) -> dict:
-    if not token or not token.startswith("BANK_TOKEN_"):
-        raise HTTPException(status_code=401, detail={"code": 401, "msg": "Token 无效或已过期"})
-    try:
-        user_id = int(token.split("_")[2])
-    except (IndexError, ValueError):
-        raise HTTPException(status_code=401, detail={"code": 401, "msg": "Token 格式错误"})
+    """从 JWT Token 中解析用户"""
+    # 使用 JWT 工具提取用户ID
+    user_id = extract_user_id(token)
+    
+    # 从数据库查询用户完整信息
     user = db.query_one("SELECT * FROM users WHERE id = %s", (user_id,))
     if not user:
         raise HTTPException(status_code=401, detail={"code": 401, "msg": "用户不存在"})
+    
+    # 检查用户状态
+    if user["status"] == 0:
+        raise HTTPException(status_code=423, detail={"code": 423, "msg": "账户已锁定,请联系客服"})
+    
     return user
 
 
@@ -56,6 +61,7 @@ def deposit(body: DepositRequest, token: str = Header(..., alias="token")):
     return {"code": 200, "msg": "存款成功", "txn_id": txn_id, "balance_after": round(new_balance, 2)}
 
 
+
 # ---------- 取款 ----------
 @router.post("/withdraw", summary="取款")
 def withdraw(body: WithdrawRequest, token: str = Header(..., alias="token")):
@@ -74,6 +80,7 @@ def withdraw(body: WithdrawRequest, token: str = Header(..., alias="token")):
     ])
     new_balance = float(account["balance"]) - body.amount
     return {"code": 200, "msg": "取款成功", "txn_id": txn_id, "balance_after": round(new_balance, 2)}
+
 
 
 # ---------- 行内转账 ----------
@@ -106,10 +113,15 @@ def transfer(body: TransferRequest, token: str = Header(..., alias="token")):
     return {"code": 200, "msg": "转账成功", "txn_id": txn_id, "fee": 0.00}
 
 
+
 # ---------- 跨行转账 ----------
 @router.post("/transfer/cross-bank", summary="跨行转账（收取手续费 0.1%）")
 def cross_bank_transfer(body: CrossBankTransferRequest, token: str = Header(..., alias="token")):
     user = _get_user_from_token(token)
+    
+    if not body.to_account.isdigit() or len(body.to_account) < 8:
+        raise HTTPException(status_code=400, detail={"code": 400, "msg": "外部账号格式非法"})
+        
     from_acc = _get_own_account(body.from_account, user["id"])
 
     fee = round(body.amount * CROSS_BANK_FEE_RATE, 2)
@@ -131,6 +143,7 @@ def cross_bank_transfer(body: CrossBankTransferRequest, token: str = Header(...,
           f"跨行至{body.to_bank_code}")),
     ])
     return {"code": 200, "msg": "跨行转账成功", "txn_id": txn_id, "fee": fee, "total_deducted": total}
+
 
 
 # ---------- 查询交易记录 ----------

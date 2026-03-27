@@ -97,7 +97,7 @@
     if (!amount || amount <= 0) return Toast.error('请输入有效金额');
     const res = await BankAPI.deposit(account_no, amount);
     if (!res) return;
-    Toast.success(`存款成功！新余额: ${fmt.money(res.data.balance)}`);
+    Toast.success(`存款成功！新余额: ${fmt.money(res.balance_after)}`);
     await loadAccounts();
   }
 
@@ -107,13 +107,13 @@
     if (!amount || amount <= 0) return Toast.error('请输入有效金额');
     const res = await BankAPI.withdraw(account_no, amount);
     if (!res) return;
-    Toast.success(`取款成功！新余额: ${fmt.money(res.data.balance)}`);
+    Toast.success(`取款成功！新余额: ${fmt.money(res.balance_after)}`);
     await loadAccounts();
   }
 
   async function doClose(account_no) {
     if (!confirm(`确认注销账号 ${account_no}？此操作不可撤回`)) return;
-    const res = await del(`/api/account/${account_no}`);
+    const res = await BankAPI.closeAccount(account_no);
     if (!res) return;
     Toast.success('账户已注销');
     await loadAccounts();
@@ -126,7 +126,7 @@
     const account_type = document.getElementById('new-account-type').value;
     const res = await BankAPI.createAccount(account_type);
     if (!res) return;
-    Toast.success(`账户开立成功！账号：${res.data.account_no}`);
+    Toast.success(`账户开立成功！账号：${res.account_no}`);
     closeModal();
     await loadAccounts();
   }

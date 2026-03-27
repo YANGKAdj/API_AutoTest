@@ -33,20 +33,20 @@ class TestMockThirdParty:
             "from_account": "6222020000000001",
             "to_account": "9999888877776666",  # 外部银行账号
             "amount": 1000,
-            "bank_code": "ICBC",
+            "to_bank_code": "ICBC",
         }
         res = requests.post(
             CROSS_TRANSFER_URL,
             json=payload,
-            headers={"authorization": zhang_token},
+            headers={"token": zhang_token},
         )
         # 跨行转账 0.1% 手续费，1000元手续费为1元
         assert res.status_code == 200
         data = res.json()
         assert data["code"] == 200
         # 验证手续费字段
-        assert "fee" in data["data"]
-        assert data["data"]["fee"] == round(1000 * 0.001, 2)
+        assert "fee" in data
+        assert data["fee"] == round(1000 * 0.001, 2)
 
     # ── 异常 Mock：模拟外部网关服务不可用 ─────────────────
     def test_cross_transfer_when_gateway_unavailable(self, zhang_token):
@@ -66,12 +66,12 @@ class TestMockThirdParty:
                     "from_account": "6222020000000001",
                     "to_account": "9999000011112222",
                     "amount": 500,
-                    "bank_code": "CCB",
+                    "to_bank_code": "CCB",
                 }
                 res = requests.post(
                     CROSS_TRANSFER_URL,
                     json=payload,
-                    headers={"authorization": zhang_token},
+                    headers={"token": zhang_token},
                 )
                 # 如果走到这里说明当前实现不依赖外部网关（本地 Mock 服务）
                 # 验证接口正常响应即可
@@ -90,12 +90,12 @@ class TestMockThirdParty:
             "from_account": "6222020000000001",
             "to_account": "INVALID_ACCT",      # 明显非法账号
             "amount": 100,
-            "bank_code": "UNKNOWN",
+            "to_bank_code": "UNKNOWN",
         }
         res = requests.post(
             CROSS_TRANSFER_URL,
             json=payload,
-            headers={"authorization": zhang_token},
+            headers={"token": zhang_token},
         )
         # 应该被校验拦截
         assert res.status_code in [400, 422]

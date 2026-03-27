@@ -17,6 +17,11 @@ class TestFixedDeposit:
     # ── 正向 ─────────────────────────────────────────────
     def test_create_fixed_deposit_success(self, zhang_token):
         """正向：开立12个月定期，余额扣减，年利率正确"""
+        # 确保余额充足
+        requests.post(f"{BASE_URL}/api/transaction/deposit", json={
+            "account_no": "6222020000000002", "amount": 2000
+        }, headers={"token": zhang_token})
+        
         res = requests.post(f"{BASE}/create", json={
             "account_no": "6222020000000002",
             "amount": 2000,
@@ -36,6 +41,11 @@ class TestFixedDeposit:
 
     def test_early_withdraw(self, zhang_token):
         """正向：提前支取，返还本金（利息按活期利率重算）"""
+        # 先确保余额充足
+        requests.post(f"{BASE_URL}/api/transaction/deposit", json={
+            "account_no": "6222020000000002", "amount": 2000
+        }, headers={"token": zhang_token})
+        
         # 先开立一笔定期
         create_res = requests.post(f"{BASE}/create", json={
             "account_no": "6222020000000002",
@@ -65,13 +75,17 @@ class TestFixedDeposit:
         """异常：余额不足时不允许开立定期"""
         res = requests.post(f"{BASE}/create", json={
             "account_no": "6222020000000002",
-            "amount": 9999999,  # 远超余额
+            "amount": 999999,  # 远超余额但符合框架边界金额约束(<=1,000,000)
             "term_months": 12,
         }, headers=self._headers(zhang_token))
         assert res.status_code == 400
 
     def test_double_withdraw_rejected(self, zhang_token):
         """异常：已支取的定期不允许再次支取"""
+        requests.post(f"{BASE_URL}/api/transaction/deposit", json={
+            "account_no": "6222020000000002", "amount": 1000
+        }, headers={"token": zhang_token})
+        
         create_res = requests.post(f"{BASE}/create", json={
             "account_no": "6222020000000002",
             "amount": 500,

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>星辰银行 - 定期存款</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar-placeholder"></div>
+  <main class="main-content">
+    <div class="page-header flex-between">
+      <div>
+        <div class="page-title">⏰ 定期存款</div>
+        <div class="page-subtitle">年化利率最高 2.50% · 随时可提前支取</div>
+      </div>
+      <button class="btn btn-primary" onclick="openFDModal()">+ 存入定期</button>
+    </div>
+
+    <div id="fd-list"></div>
+  </main>
+</div>
+
+<!-- 开立定期弹窗 -->
+<div id="fd-modal" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">💰 存入定期</div>
+    <div class="form-group">
+      <label class="form-label">资金转出账号（活期/储蓄）</label>
+      <select id="fd-account" class="form-input"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">存入金额（元）</label>
+      <input id="fd-amount" class="form-input" type="number" min="100" placeholder="最低 100 元">
+    </div>
+    <div class="form-group">
+      <label class="form-label">存入期限</label>
+      <select id="fd-term" class="form-input">
+        <option value="1">1 个月（年化 1.50%）</option>
+        <option value="3">3 个月（年化 1.80%）</option>
+        <option value="6">6 个月（年化 2.10%）</option>
+        <option value="12" selected>12 个月（年化 2.50%）</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeFDModal()">取消</button>
+      <button class="btn btn-primary" onclick="doCreateFD()">确认存入</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+<script src="js/api.js"></script>
+<script src="js/sidebar.js"></script>
+<script>
+  (async () => {
+    if (!Auth.check()) return;
+    const res = await BankAPI.getAccounts();
+    if (res) {
+      const active = res.data.filter(a => a.status === 'active');
+      const opts = active.map(a => `<option value="${a.account_no}">${a.account_no} (余额: ${fmt.money(a.balance)})</option>`).join('');
+      document.getElementById('fd-account').innerHTML = opts;
+    }
+    await loadFDs();
+  })();
+
+  async function loadFDs() {
+    const res = await BankAPI.listFDs();
+    const el = document.getElementById('fd-list');
+    if (!res || res.data.length === 0) {
+      el.innerHTML = '<div class="card text-center text-muted" style="padding:60px">暂无定期存款记录</div>';
+      return;
+    }
+    el.innerHTML = `<div class="card"><div class="table-wrapper"><table>
+      <thead><tr><th>存单编号</th><th>金额</th><th>利率</th><th>期限</th><th>到期日</th><th>预计利息</th><th>状态</th><th>操作</th></tr></thead>
+      <tbody>${res.data.map(f => `<tr>
+        <td class="text-muted text-sm">${f.fd_id}</td>
+        <td class="font-bold">${fmt.money(f.principal)}</td>
+        <td class="text-success">${f.annual_rate}</td>
+        <td>${f.term_months}个月</td>
+        <td>${fmt.date(f.maturity_date).split(' ')[0]}</td>
+        <td>${fmt.money(f.interest)}</td>
+        <td><span class="badge ${f.status==='active'?'badge-green':f.status==='broken'?'badge-red':'badge-secondary'}">${fmt.status[f.status]||f.status}</span></td>
+        <td>${f.status==='active'?`<button class="btn btn-secondary btn-sm" onclick="doWithdrawFD('${f.fd_id}')">提前支取</button>`:'--'}</td>
+      </tr>`).join('')}</tbody>
+    </table></div></div>`;
+  }
+
+  function openFDModal()  { document.getElementById('fd-modal').classList.add('open'); }
+  function closeFDModal() { document.getElementById('fd-modal').classList.remove('open'); }
+
+  async function doCreateFD() {
+    const account_no  = document.getElementById('fd-account').value;
+    const amount      = parseFloat(document.getElementById('fd-amount').value);
+    const term_months = parseInt(document.getElementById('fd-term').value);
+    if (!amount || amount < 100) return Toast.error('请输入有效的存款金额（起存额100元）');
+    
+    const res = await BankAPI.createFD({ account_no, amount, term_months });
+    if (!res) return;
+    Toast.success(`存入成功！预计到期利息：${fmt.money(res.data.interest)}`);
+    closeFDModal();
+    await loadFDs();
+  }
+
+  async function doWithdrawFD(fd_id) {
+    if (!confirm('提前支取将按照活期利率（0.35%）计息，确认支取吗？')) return;
+    const res = await BankAPI.withdrawFD(fd_id);
+    if (!res) return;
+    Toast.success(`支取成功！损失利息：${fmt.money(res.data.lost_interest)}，返还本息：${fmt.money(res.data.total_return)}`);
+    await loadFDs();
+  }
+</script>
+</body>
+</html>

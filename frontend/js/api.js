@@ -46,7 +46,8 @@ async function request(method, path, body = null, requireAuth = true) {
   if (requireAuth) {
     const token = Auth.getToken();
     if (!token) { location.href = '/frontend/login.html'; return null; }
-    headers['authorization'] = token;
+    headers['token'] = token;          // 兼容旧模块 (Account, Transaction)
+    headers['authorization'] = token;  // 兼容新模块 (Loan, Profile, etc.)
   }
   const opts = { method, headers };
   if (body) opts.body = JSON.stringify(body);
@@ -54,7 +55,9 @@ async function request(method, path, body = null, requireAuth = true) {
     const res = await fetch(API_BASE + path, opts);
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const msg = data?.detail?.msg || data?.detail || '请求失败';
+      let msg = data?.detail?.msg || data?.detail || '请求失败';
+      if (Array.isArray(msg)) msg = msg[0]?.msg || '参数校验失败';
+      else if (typeof msg === 'object') msg = JSON.stringify(msg);
       Toast.error(msg);
       return null;
     }
@@ -80,8 +83,8 @@ const BankAPI = {
   createAccount: (type) => post('/api/account/open', { account_type: type }),
   getAccounts:   ()     => get('/api/account/list'),
   getAccount:    (no)   => get(`/api/account/${no}`),
-  getBalance:    (no)   => get(`/api/account/${no}/balance`),
-  closeAccount:  (no)   => del(`/api/account/${no}`),
+  getBalance:    (no)   => get(`/api/account/balance/${no}`),
+  closeAccount:  (no)   => post(`/api/account/close/${no}`, {}),
 
   // 存取款
   deposit:  (account_no, amount) => post('/api/transaction/deposit',  { account_no, amount }),

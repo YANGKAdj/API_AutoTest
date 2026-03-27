@@ -8,6 +8,7 @@ import time
 import threading
 from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
+from bank_server.utils.jwt_handler import extract_user_id
 
 router = APIRouter(prefix="/api/report", tags=["异步报表"])
 
@@ -21,9 +22,9 @@ class ReportRequest(BaseModel):
     end_date: str    # 格式: "2026-03-31"
 
 
-def _verify_token(token: str):
-    if not token or not token.startswith("BANK_TOKEN_"):
-        raise HTTPException(status_code=401, detail={"code": 401, "msg": "Token 无效"})
+def _verify_token(token: str) -> int:
+    """验证 JWT Token 并返回用户ID"""
+    return extract_user_id(token)
 
 
 def _generate_report_async(task_id: str, account_no: str):

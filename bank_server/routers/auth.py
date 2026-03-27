@@ -1,17 +1,12 @@
 """
 认证模块路由：用户注册 / 登录
 """
-import random
 from fastapi import APIRouter, HTTPException
 from bank_server.models import RegisterRequest, LoginRequest
 from bank_server import database as db
+from bank_server.utils.jwt_handler import create_access_token
 
 router = APIRouter(prefix="/api/auth", tags=["认证模块"])
-
-
-def _generate_token(user_id: int) -> str:
-    """生成简单的测试 Token（生产环境请用 JWT）"""
-    return f"BANK_TOKEN_{user_id}_{random.randint(100000, 999999)}"
 
 
 # ---------- 用户注册 ----------
@@ -59,9 +54,12 @@ def login(body: LoginRequest):
                 "msg": f"密码错误，剩余尝试次数：{5 - fail_count}"
             })
 
-    # 登录成功：重置失败次数，下发 Token
-    token = _generate_token(user["id"])
+    # 登录成功：重置失败次数，使用 JWT 生成 Token
     db.execute("UPDATE users SET fail_count = 0 WHERE id = %s", (user["id"],))
+    
+    # 生成 JWT token
+    token = create_access_token(user["id"], user["username"])
+    
     return {
         "code": 200,
         "msg": "登录成功",
