@@ -20,9 +20,6 @@ services:
   # ── 1.5 Redis 缓存队列 ──────────────────────────────────────
   redis:
     image: redis:7.0-alpine
-    container_name: bank_redis
-    ports:
-      - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -43,8 +40,6 @@ services:
       - DB_NAME=bank_core
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-    ports:
-      - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
