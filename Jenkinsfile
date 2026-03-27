@@ -72,18 +72,22 @@ pipeline {
 
         stage('Run Tests') {
             steps {
-                // 单独启动测试容器（不加 abort-on-container-exit，不互相影响）
+                // 创建 allure-results 目录（如果不存在）
+                sh 'mkdir -p allure-results'
+                
+                // 单独启动测试容器，测试完成后自动删除
                 sh 'docker compose -p jenkins_bank run --rm api-tests'
-
-                // 把 allure-results 从容器持久化目录复制出来
-                // （docker compose run 的 volume 如果映射了就自动保留）
             }
         }
 
         stage('Generate Report') {
             steps {
-                // 使用 Allure 插件生成报告
-                allure includeProperties: false, jdk: '', results: [[path: '${ALLURE_RESULTS}']]
+                script {
+                    // 确保结果目录存在
+                    sh 'ls -la allure-results/ || true'
+                }
+                // 使用 Allure 插件生成报告（路径相对于工作区）
+                allure includeProperties: false, jdk: '', results: [[path: 'allure-results']]
             }
         }
     }
