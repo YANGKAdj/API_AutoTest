@@ -18,8 +18,34 @@ pipeline {
                 // 先停掉上一次可能残留的容器（使用 jenkins 前缀避免冲突）
                 sh 'docker compose -p jenkins_bank down --volumes --remove-orphans || true'
 
-                // 启动基础设施（MySQL + Redis + Bank Server），测试容器先不启动
-                sh 'docker compose -p jenkins_bank up -d --build db redis bank-server'
+                // 启动基础设施（MySQL + Redis），测试容器先不启动
+                sh 'docker compose -p jenkins_bank up -d --build db redis'
+                
+                // 等待 MySQL 和 Redis 完全就绪
+                sh '''
+                    echo "等待 MySQL 就绪..."
+                    for i in $(seq 1 30); do
+                        if docker compose -p jenkins_bank exec -T db mysqladmin ping -h localhost --silent 2>/dev/null; then
+                            echo "MySQL 已就绪 (耗时约 $((i*2)) 秒)"
+                            break
+                        fi
+                        echo "MySQL 等待中... ($i/30)"
+                        sleep 2
+                    done
+                    
+                    echo "等待 Redis 就绪..."
+                    for i in $(seq 1 10); do
+                        if docker compose -p jenkins_bank exec -T redis redis-cli ping 2>/dev/null | grep -q PONG; then
+                            echo "Redis 已就绪"
+                            break
+                        fi
+                        echo "Redis 等待中... ($i/10)"
+                        sleep 1
+                    done
+                '''
+                
+                // 启动银行服务
+                sh 'docker compose -p jenkins_bank up -d --build bank-server'
 
                 // 等待银行服务完全就绪（healthcheck 最多等 90 秒）
                 sh '''
@@ -34,6 +60,7 @@ pipeline {
                     done
                     echo "银行服务启动超时！"
                     docker compose -p jenkins_bank logs bank-server
+                    docker compose -p jenkins_bank logs db
                     exit 1
                 '''
             }
