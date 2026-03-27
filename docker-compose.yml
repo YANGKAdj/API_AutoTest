@@ -76,9 +76,7 @@ services:
       - ./allure-results:/app/allure-results
     networks:
       - banknet
-    profiles:
-      # 不随 docker compose up 自动启动，由 Jenkinsfile 单独 docker compose run
-      - test
+    # 不使用 profiles，直接用 depends_on 确保依赖服务已启动
 
 networks:
   banknet:

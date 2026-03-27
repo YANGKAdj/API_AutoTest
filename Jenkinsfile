@@ -6,6 +6,10 @@ pipeline {
         ALLURE_RESULTS = 'allure-results'
     }
 
+    tools {
+        allure 'Allure'
+    }
+
     stages {
         stage('Checkout') {
             steps {
@@ -78,8 +82,8 @@ pipeline {
 
         stage('Generate Report') {
             steps {
-                // 如果安装了 allure 命令行工具，生成 HTML 报告
-                sh 'allure generate ${ALLURE_RESULTS} -o allure-report --clean || echo "Allure CLI 未安装，跳过报告生成"'
+                // 使用 Allure 插件生成报告
+                allure includeProperties: false, jdk: '', results: [[path: '${ALLURE_RESULTS}']]
             }
         }
     }
